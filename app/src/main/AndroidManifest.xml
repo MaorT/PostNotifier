@@ -21,7 +21,7 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".BroadcastService"></service>
+        <service android:name=".MQTT"></service>
 
     </application>
 
