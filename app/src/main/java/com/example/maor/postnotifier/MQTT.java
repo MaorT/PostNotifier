@@ -4,56 +4,89 @@ import android.annotation.TargetApi;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Vibrator;
 import android.util.Log;
 import android.widget.Toast;
-
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-
 import java.util.ArrayList;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.logging.Handler;
+
 
 
 public class MQTT extends Service implements MqttCallback {
 
-    private String LOG_TAG = null;
-    private ArrayList<String> mList;
-    private static int staticCounter = 0;
-
-    private static MQTT mqtt = null;
-    // MQTT Variable todo : move to save preference
+    // MQTT Variable todo : move some of them to the save preference
+    private MqttClient client = null;
     public static String mqtt_in_topic = "postal";
     public static String mqtt_out_topic = "postal";
     public static String mqtt_server_address = "m12.cloudmqtt.com";
     public static String mqtt_userName = "androidPostal";
     public static String mqtt_password = "123456";
+    public static int mqtt_port = 16666;
+    String ClientId = System.getProperty("user.name") + "." + System.currentTimeMillis(); // Generate a unique user id
 
-    private static MqttClient client;
-    private static boolean newDataFlag = false;
-    private String lastSubscribeMsg = "0";
-    private Context context;
+    private boolean serviceOnFlag = false;
 
-    public static boolean isNewDataFlag() {
-        return newDataFlag;
-    }
+
+    //region LifeCycle and Events Methods
 
     @Override
     public void onCreate() {
         super.onCreate();
-        LOG_TAG = this.getClass().getSimpleName();
-        Log.d("mqttService", "In onCreate");
+        Log.d("mqttService", "mqtt onCreate");
         Toast.makeText(getApplicationContext(), "PostNotifier Service has been started", Toast.LENGTH_LONG).show();
     }
 
-//    public MQTT() {
-//    }
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        Log.d("mqttService", "mqtt onStartCommand");
+        Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
+        Subscribe(mqtt_in_topic);
+        serviceOnFlag = true;
+        return START_REDELIVER_INTENT;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.d("mqttService", "mqtt onDestroy");
+        serviceOnFlag = false;
+        if(client != null && IsConnected()){
+            UnSubscribe(mqtt_in_topic);
+            Disconnect();
+        }
+        Toast.makeText(getApplicationContext(), "PostNotifier Service has been stopped", Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        // Wont be called as service is not bound
+        Log.d("mqttService", "mqtt onBind");
+        Toast.makeText(getApplicationContext(), "In onBind", Toast.LENGTH_SHORT);
+        return null;
+    }
+
+    @Override
+    public void messageArrived(String topic, MqttMessage message) throws Exception {
+        //Log.d("mqttService","new message:"+ message.toString());
+        NotifyBroadcast(topic,message.toString());
+    }
+
+    @Override
+    public void deliveryComplete(IMqttDeliveryToken token) {
+        // TODO Auto-generated method stub
+        Log.d("mqttService", "mqtt deliveryComplete");
+
+    }
+
+    //endregion
+
+
+    //region Connection methods
 
     public void Connect(String url,int port,String clientID) {
         try {
@@ -104,7 +137,10 @@ public class MQTT extends Service implements MqttCallback {
 
     }
 
-
+    public boolean IsConnected()
+    {
+        return client.isConnected();
+    }
 
     public void Disconnect() {
         try {
@@ -116,6 +152,35 @@ public class MQTT extends Service implements MqttCallback {
         }
 
     }
+
+    @Override
+    public void connectionLost(Throwable cause) {
+        //  Toast.makeText(getApplicationContext(), "Connection Lost", Toast.LENGTH_LONG);
+        NotifyBroadcast("system","connectionLost");
+
+        // Try to reconnect in a loop when the connection was lost, until service stopped or connected successfully
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(!IsConnected() && serviceOnFlag)
+                {
+                    NotifyBroadcast("system","Trying to reconnect..");
+                    Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
+                    try { Thread.sleep(2000);}
+                    catch (Exception ex) {}
+                }
+                Subscribe(mqtt_in_topic);
+            }
+        });
+        thread.run();
+    }
+
+
+
+    //endregion
+
+
+
 
     public void Subscribe(String topic) {
         try {
@@ -147,145 +212,25 @@ public class MQTT extends Service implements MqttCallback {
     }
 
 
-    @Override
-    public void connectionLost(Throwable cause) {
-        // TODO Auto-generated method stub
 
-
-    }
-
-    @Override
-    public void messageArrived(String topic, MqttMessage message) throws Exception {
-        //
-       // Log.d("SmartRoom","New message arrived");
-//       lastSubscribeMsg = message.toString();
-
-        newDataFlag = true;
-
-        Log.d("mqttService","new message:"+ message.toString());
-//        Intent broadcastIntent = new Intent();
-//        broadcastIntent.setAction(MainActivity.mBroadcastStringAction);
-//        broadcastIntent.putExtra("Data", "Message from Posta topic:"+lastSubscribeMsg ); // Add data that is sent to service
-//
-        //HandleMessage(topic,message.toString());
-        //todo :hanlde subscribed messages - check for right topic
-        Log.d("mqttService","Before test");
-        /////////////  TEST /////////////////////
+    private void NotifyBroadcast(String topic,String message){
 
         Intent broadcastIntent = new Intent();
         broadcastIntent.setAction(MainActivity.mBroadcastStringAction);
-        broadcastIntent.putExtra("Data", message.toString()); // Add data that is sent to service
+        broadcastIntent.putExtra("Data",message); // Add data that is sent to service
+        broadcastIntent.putExtra("Topic",topic); // Add data that is sent to service
         sendBroadcast(broadcastIntent);
-
-
-//
-
-
-//        Intent intent = new Intent("com.rj.notitfications.SECACTIVITY");
-//
-//        PendingIntent pendingIntent = PendingIntent.getActivity(MainActivity.GetContext(), 1, intent, 0);
-//
-//        Notification.Builder builder = new Notification.Builder(MainActivity.GetContext());
-//
-//        builder.setAutoCancel(false);
-//        builder.setTicker("this is ticker text");
-//        builder.setContentTitle("WhatsApp Notification");
-//        builder.setContentText("You have a new message");
-//     //   builder.setSmallIcon(R.drawable.ic_launcher);
-//        builder.setContentIntent(pendingIntent);
-//        builder.setOngoing(true);
-//        builder.setSubText("This is subtext...");   //API level 16
-//        builder.setNumber(100);
-//        builder.build();
-//
-//        NotificationManager manager = (NotificationManager)MainActivity.GetContext().getSystemService(NOTIFICATION_SERVICE);
-//
-//        Notification myNotication = builder.getNotification();
-//        manager.notify(11, myNotication);
-
-//MainActivity x = new MainActivity();
-     //   x.NotifyTest();
-
-        // here is the problem that i can't do anything to alert
-
-
-        Log.d("mqttService","After test");
-
     }
 
 
-    public String Get_Last_Subscribe_Msg()
-    {
-        newDataFlag = false;
-        return lastSubscribeMsg;
-    }
 
-    public boolean HaveMessage(){
-        if(lastSubscribeMsg == "0")
-            return false;
-        return newDataFlag;
-    }
-
-
-    @Override
-    public void deliveryComplete(IMqttDeliveryToken token) {
-        // TODO Auto-generated method stub
-    }
-
-
-    public boolean IsConnected()
-    {
-        return client.isConnected();
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d("mqttService", "In onStartCommand");
-
-//        mqtt = new MQTT();
-        String ClientId = System.getProperty("user.name") + "." + System.currentTimeMillis();
-        Connect(mqtt_server_address,16666,ClientId,mqtt_userName,mqtt_password);
-        Subscribe(mqtt_in_topic);
-        return START_REDELIVER_INTENT;
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        // Wont be called as service is not bound
-        Toast.makeText(getApplicationContext(), "In onBind", Toast.LENGTH_SHORT);
-        Log.d("mqttService", "In onBind");
-        return null;
-    }
-
-    @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH) // todo: check why ICE_CREAM_SANDWICH  ??
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-        super.onTaskRemoved(rootIntent);
-        Toast.makeText(getApplicationContext(), "In onTaskRemoved", Toast.LENGTH_LONG);
-        Log.d("mqttService", "In onTaskRemoved");
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        Toast.makeText(getApplicationContext(), "In onDestroy", Toast.LENGTH_LONG);
-        if(mqtt != null && mqtt.IsConnected()){
-            mqtt.UnSubscribe(mqtt_in_topic);
-            mqtt.Disconnect();
-        }
-        Toast.makeText(getApplicationContext(), "PostNotifier Service has been stopped", Toast.LENGTH_LONG).show();
-        Log.d("mqttService", "In onDestroy");
-    }
-
-
-    public void StopService(){
-        //todo : check how to stop the service and not Unsubscribe
-
-        if(mqtt != null && mqtt.IsConnected()){
-            mqtt.UnSubscribe(mqtt_in_topic);
-            mqtt.Disconnect();
-        }
-    }
+//    @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH) // todo: check why ICE_CREAM_SANDWICH  ??
+//    @Override
+//    public void onTaskRemoved(Intent rootIntent) {
+//        super.onTaskRemoved(rootIntent);
+//        Toast.makeText(getApplicationContext(), "In onTaskRemoved", Toast.LENGTH_LONG);
+//        Log.d("mqttService", "In onTaskRemoved");
+//    }
 
 
 

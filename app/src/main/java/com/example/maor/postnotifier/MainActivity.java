@@ -11,6 +11,7 @@ import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.app.NotificationCompat;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -29,11 +30,12 @@ public class MainActivity extends AppCompatActivity {
     private Intent serviceIntent;
 
     private boolean serviceOnFlag = false;
-
+    int numMessages = 0;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d("mqttService","MainActivity onCreate ");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -59,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
              //   Toast.makeText(getBaseContext(), "Service started", Toast.LENGTH_LONG).show();
-                //registerReceiver(mReceiver, mIntentFilter);
+                registerReceiver(mReceiver, mIntentFilter);
                 startService(serviceIntent);
                 serviceOnFlag = true;
                 btnStartService.setEnabled(false);
@@ -83,51 +85,21 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onResume() {
+        Log.d("mqttService","MainActivity onResume ");
         super.onResume();
-        registerReceiver(mReceiver, mIntentFilter);
+       // registerReceiver(mReceiver, mIntentFilter);
     }
-    int numMessages = 0;
-    private  BroadcastReceiver mReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(mBroadcastStringAction)) {
-//                mTextView.setText(mTextView.getText()
-//                        + intent.getStringExtra("Data") + "\n\n");
-                Toast.makeText(context, "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_LONG).show();
-
-
-                NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(context);
-                mBuilder.setSmallIcon(R.drawable.ic_stat_name);
-                mBuilder.setContentTitle("תיבת דואר");
-                mBuilder.setContentText("דואר חדש הגיע");
-                mBuilder.setNumber(++numMessages);
-                Intent resultIntent = new Intent(context, MainActivity.class);
-                TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
-                stackBuilder.addParentStack(MainActivity.class);
-
-// Adds the Intent that starts the Activity to the top of the stack
-                stackBuilder.addNextIntent(resultIntent);
-                PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0,PendingIntent.FLAG_UPDATE_CURRENT);
-                mBuilder.setContentIntent(resultPendingIntent);
-
-                NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
-// notificationID allows you to update the notification later on.
-                mNotificationManager.notify(1, mBuilder.build());
-            }
-
-
-        }
-    };
 
     @Override
     protected void onPause() {
-      //  unregisterReceiver(mReceiver);
+        Log.d("mqttService","MainActivity onPause ");
+        //  unregisterReceiver(mReceiver);
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
+        Log.d("mqttService","MainActivity onDestroy ");
         super.onDestroy();
 //        Intent stopIntent = new Intent(MainActivity.this,
 //                BroadcastService.class);
@@ -136,6 +108,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+
+        Log.d("mqttService","MainActivity onBackPressed ");
         if(serviceOnFlag){
             Toast.makeText(getApplicationContext(), "The service is still running - going background", Toast.LENGTH_LONG).show();
             moveTaskToBack(true);
@@ -148,15 +122,72 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+
+
+    private  BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(mBroadcastStringAction)) {
+//                mTextView.setText(mTextView.getText()
+//                        + intent.getStringExtra("Data") + "\n\n");
+
+                String topic = intent.getStringExtra("Topic");
+                String data = intent.getStringExtra("Data");
+
+                //Toast.makeText(context, "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_LONG).show();
+
+                // When receiving a system notifications and not a regular data
+                if(topic.equals("system")){
+                    Vibrate(500);
+                    Toast.makeText(context, data, Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                Toast.makeText(getApplicationContext(), "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_SHORT).show();
+                NotifyOnNewMessage();
+            }
+        }
+    };
+
+
+
+
     public static Context GetContext(){
         return GetContext();
     }
 
-    public void NotifyTest(){
 
-        Vibrator v = (Vibrator) this.getSystemService(Context.VIBRATOR_SERVICE);
+    private void Vibrate(int timeMs)
+    {
+        Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         // Vibrate for 500 milliseconds
-        v.vibrate(500);
+        v.vibrate(timeMs);
+    }
+
+    private void NotifyOnNewMessage(){
+
+        Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
+        // Vibrate for 500 milliseconds
+        v.vibrate(200);
+
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext());
+        mBuilder.setSmallIcon(R.drawable.ic_stat_name);
+        mBuilder.setContentTitle("תיבת דואר");
+        mBuilder.setContentText("דואר חדש הגיע");
+        mBuilder.setNumber(++numMessages);
+        Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(getApplicationContext());
+        stackBuilder.addParentStack(MainActivity.class);
+
+// Adds the Intent that starts the Activity to the top of the stack
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0,PendingIntent.FLAG_UPDATE_CURRENT);
+        mBuilder.setContentIntent(resultPendingIntent);
+
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+// notificationID allows you to update the notification later on.
+        mNotificationManager.notify(1, mBuilder.build()); // todo : choose notification number in a smart way
     }
 
 
