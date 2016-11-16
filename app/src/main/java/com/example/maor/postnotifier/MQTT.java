@@ -1,12 +1,21 @@
 package com.example.maor.postnotifier;
 
-import android.annotation.TargetApi;
+
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Vibrator;
+import android.support.v4.app.TaskStackBuilder;
+import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 import android.widget.Toast;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
@@ -29,7 +38,50 @@ public class MQTT extends Service implements MqttCallback {
     public static int mqtt_port = 16666;
     String ClientId = System.getProperty("user.name") + "." + System.currentTimeMillis(); // Generate a unique user id
 
+    private static final String LOG_TAG = "ForegroundService";
     private boolean serviceOnFlag = false;
+
+    Notification notification = null;
+
+    private int numMessages = 0;
+    private IntentFilter mIntentFilter;
+
+
+
+    private  BroadcastReceiver mReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(MainActivity.mBroadcastStringAction)) {
+//                mTextView.setText(mTextView.getText()
+//                        + intent.getStringExtra("Data") + "\n\n");
+
+                String topic = intent.getStringExtra("Topic");
+                String data = intent.getStringExtra("Data");
+
+                //Toast.makeText(context, "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_LONG).show();
+
+                // When receiving a system notifications and not a regular data
+//                if(topic.equals("system")){
+//                    Vibrate(500);
+//                    Toast.makeText(context, data, Toast.LENGTH_LONG).show();
+//                    return;
+//                }
+
+                Toast.makeText(getApplicationContext(), "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_SHORT).show();
+                NotifyOnNewMessage(); //todo:return\implement this action
+                Log.d("mqttService","Service broadcast was notified");
+
+            }
+        }
+    };
+
+
+
+
+
+
+
+
 
 
     //region LifeCycle and Events Methods
@@ -39,15 +91,88 @@ public class MQTT extends Service implements MqttCallback {
         super.onCreate();
         Log.d("mqttService", "mqtt onCreate");
         Toast.makeText(getApplicationContext(), "PostNotifier Service has been started", Toast.LENGTH_LONG).show();
+        mIntentFilter = new IntentFilter();
+        mIntentFilter.addAction(MainActivity.mBroadcastStringAction);
+        mIntentFilter.addAction(MainActivity.mBroadcastStringAction);
+        mIntentFilter.addAction(MainActivity.mBroadcastIntegerAction);
+        mIntentFilter.addAction(MainActivity.mBroadcastArrayListAction);
+        registerReceiver(mReceiver, mIntentFilter);
+
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("mqttService", "mqtt onStartCommand");
-        Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
-        Subscribe(mqtt_in_topic);
-        serviceOnFlag = true;
-        return START_REDELIVER_INTENT;
+//        Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
+//        Subscribe(mqtt_in_topic);
+//        serviceOnFlag = true;
+//       // StartForegroung_test();
+//        return START_REDELIVER_INTENT;
+        if (intent.getAction().equals(Constants.ACTION.STARTFOREGROUND_ACTION)) {
+            Log.i(LOG_TAG, "Received Start Foreground Intent ");
+
+            // todo : does it needed ?
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+            notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
+            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
+                    notificationIntent, 0);
+
+            Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
+            Subscribe(mqtt_in_topic);
+
+            serviceOnFlag = true;
+
+//            Intent previousIntent = new Intent(this, MQTT.class);
+//            previousIntent.setAction(Constants.ACTION.PREV_ACTION);
+//            PendingIntent ppreviousIntent = PendingIntent.getService(this, 0,
+//                    previousIntent, 0);
+
+            Intent playIntent = new Intent(this, MQTT.class);
+            playIntent.setAction(Constants.ACTION.PLAY_ACTION);
+            PendingIntent pplayIntent = PendingIntent.getService(this, 0,
+                    playIntent, 0);
+
+            Intent nextIntent = new Intent(this, MQTT.class);
+            nextIntent.setAction(Constants.ACTION.NEXT_ACTION);
+            PendingIntent pnextIntent = PendingIntent.getService(this, 0,
+                    nextIntent, 0);
+
+            Bitmap icon = BitmapFactory.decodeResource(getResources(),
+                    R.drawable.ic_stat_name);
+
+            notification = new NotificationCompat.Builder(this)
+                    .setContentTitle("ContentTitle")
+                    .setTicker("setTicker")
+                    .setContentText("ContentText")
+                    .setSmallIcon(R.drawable.ic_stat_name)
+                    .setLargeIcon(
+                            Bitmap.createScaledBitmap(icon, 128, 128, false))
+                    .setContentIntent(pendingIntent)
+                    .setOngoing(true)
+//                    .addAction(android.R.drawable.ic_media_previous,
+//                            "Previous", ppreviousIntent)
+                    .addAction(android.R.drawable.ic_media_play, "Play",
+                            pplayIntent)
+                    .addAction(android.R.drawable.ic_media_next, "Stop",
+                    pnextIntent).build();
+            startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE,
+                    notification);
+        } else if (intent.getAction().equals(Constants.ACTION.PREV_ACTION)) {
+            Log.i(LOG_TAG, "Clicked Previous");
+        } else if (intent.getAction().equals(Constants.ACTION.PLAY_ACTION)) {
+            Log.i(LOG_TAG, "Clicked Play");
+        } else if (intent.getAction().equals(Constants.ACTION.NEXT_ACTION)) {
+            Log.i(LOG_TAG, "Clicked Next");
+        } else if (intent.getAction().equals(
+                Constants.ACTION.STOPFOREGROUND_ACTION)) {
+            Log.i(LOG_TAG, "Received Stop Foreground Intent");
+            stopForeground(true);
+            stopSelf();
+        }
+        return START_STICKY;
     }
 
     @Override
@@ -212,7 +337,6 @@ public class MQTT extends Service implements MqttCallback {
     }
 
 
-
     private void NotifyBroadcast(String topic,String message){
 
         Intent broadcastIntent = new Intent();
@@ -220,18 +344,65 @@ public class MQTT extends Service implements MqttCallback {
         broadcastIntent.putExtra("Data",message); // Add data that is sent to service
         broadcastIntent.putExtra("Topic",topic); // Add data that is sent to service
         sendBroadcast(broadcastIntent);
+
+        Log.d("mqttService","Notifying broadcast receiver..");
     }
 
 
 
-//    @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH) // todo: check why ICE_CREAM_SANDWICH  ??
-//    @Override
-//    public void onTaskRemoved(Intent rootIntent) {
-//        super.onTaskRemoved(rootIntent);
-//        Toast.makeText(getApplicationContext(), "In onTaskRemoved", Toast.LENGTH_LONG);
-//        Log.d("mqttService", "In onTaskRemoved");
-//    }
+    private void StartForegroung_test(){
+
+            //Log.w(getClass().getName(), "Got to play()!");
 
 
+            Notification note=new Notification(R.drawable.ic_stat_name,
+                    "MQTT listener running..",
+                    System.currentTimeMillis());
+
+//
+            Intent i=new Intent(this, MainActivity.class);
+
+            i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+            PendingIntent pi=PendingIntent.getActivity(this, 0,
+                    i, 0);
+
+//            note.setLatestEventInfo(this, "Fake Player",
+//                    "Now Playing: \"Ummmm, Nothing\"",
+//                    pi);
+            note.flags|=Notification.FLAG_NO_CLEAR;
+
+            startForeground(1337, note);
+    }
+
+
+    private void NotifyOnNewMessage(){
+
+        Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
+        // Vibrate for 500 milliseconds
+        v.vibrate(200);
+
+        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext());
+        mBuilder.setSmallIcon(R.drawable.ic_stat_name);
+        mBuilder.setContentTitle("תיבת דואר");
+        mBuilder.setContentText("דואר חדש הגיע");
+        mBuilder.setNumber(++numMessages);
+        Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(getApplicationContext());
+        stackBuilder.addParentStack(MainActivity.class);
+
+// Adds the Intent that starts the Activity to the top of the stack
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0,PendingIntent.FLAG_UPDATE_CURRENT);
+        mBuilder.setContentIntent(resultPendingIntent);
+
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+// notificationID allows you to update the notification later on.
+        mNotificationManager.notify(numMessages, mBuilder.build()); // todo : choose notification number in a smart way
+
+
+    }
 
 }
