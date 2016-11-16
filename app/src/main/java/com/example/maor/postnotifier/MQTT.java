@@ -11,7 +11,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.os.Build;
+import android.graphics.Color;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.IBinder;
 import android.os.Vibrator;
 import android.support.v4.app.TaskStackBuilder;
@@ -22,8 +24,6 @@ import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-import java.util.ArrayList;
-
 
 
 public class MQTT extends Service implements MqttCallback {
@@ -38,12 +38,13 @@ public class MQTT extends Service implements MqttCallback {
     public static int mqtt_port = 16666;
     String ClientId = System.getProperty("user.name") + "." + System.currentTimeMillis(); // Generate a unique user id
 
-    private static final String LOG_TAG = "ForegroundService";
-    private static boolean serviceOnFlag = false;
+    private static final String LOG_TAG = "PostNotifier";
+
+    private static boolean serviceOnFlag = false; //helps to know the service status (run/stop)
 
     Notification notification = null;
 
-    private int numMessages = 0;
+    private int numMessages = 0; // count the notification number
 
 
     private IntentFilter mIntentFilter;
@@ -57,36 +58,18 @@ public class MQTT extends Service implements MqttCallback {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().equals(mBroadcastStringAction)) {
-//                mTextView.setText(mTextView.getText()
-//                        + intent.getStringExtra("Data") + "\n\n");
-
                 String topic = intent.getStringExtra("Topic");
                 String data = intent.getStringExtra("Data");
 
-                //Toast.makeText(context, "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_LONG).show();
-
                 // When receiving a system notifications and not a regular data
-//                if(topic.equals("system")){
-//                    Vibrate(500);
-//                    Toast.makeText(context, data, Toast.LENGTH_LONG).show();
-//                    return;
-//                }
-
-                Toast.makeText(getApplicationContext(), "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_SHORT).show();
-                NotifyOnNewMessage(); //todo:return\implement this action
-                Log.d("mqttService","Service broadcast was notified");
-
+                if(topic.equals("system")){
+                    Toast.makeText(context, data, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                NotifyOnNewMessage(data); //todo:return\implement this action
             }
         }
     };
-
-
-
-
-
-
-
-
 
 
     //region LifeCycle and Events Methods
@@ -108,23 +91,18 @@ public class MQTT extends Service implements MqttCallback {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("mqttService", "mqtt onStartCommand");
-//        Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
-//        Subscribe(mqtt_in_topic);
-//        serviceOnFlag = true;
-//       // StartForegroung_test();
-//        return START_REDELIVER_INTENT;
         if (intent.getAction().equals(Constants.ACTION.STARTFOREGROUND_ACTION)) {
             Log.i(LOG_TAG, "Received Start Foreground Intent ");
 
-            // todo : does it needed ?
-            Intent notificationIntent = new Intent(this, MainActivity.class);
+//            // todo : does it needed ?
+//            Intent notificationIntent = new Intent(this, MainActivity.class);
+//
+//            notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
+//            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+//                    | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
-            notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
-            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-
-            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
-                    notificationIntent, 0);
+//            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
+//                    notificationIntent, 0);
 
 
             Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
@@ -137,47 +115,61 @@ public class MQTT extends Service implements MqttCallback {
 //            PendingIntent ppreviousIntent = PendingIntent.getService(this, 0,
 //                    previousIntent, 0);
 
-            Intent playIntent = new Intent(this, MQTT.class);
-            playIntent.setAction(Constants.ACTION.PLAY_ACTION);
-            PendingIntent pplayIntent = PendingIntent.getService(this, 0,
-                    playIntent, 0);
+//            // Set 'Stop' button intent
+//            Intent stopIntent = new Intent(this, MQTT.class);
+//            stopIntent.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
+//            PendingIntent pstopIntent = PendingIntent.getService(this, 0,
+//                    stopIntent, 0);
 
-            Intent nextIntent = new Intent(this, MQTT.class);
-            nextIntent.setAction(Constants.ACTION.NEXT_ACTION);
-            PendingIntent pnextIntent = PendingIntent.getService(this, 0,
-                    nextIntent, 0);
 
-            Bitmap icon = BitmapFactory.decodeResource(getResources(),
-                    R.drawable.ic_stat_name);
 
-            notification = new NotificationCompat.Builder(this)
-                    .setContentTitle("ContentTitle")
-                    .setTicker("setTicker")
-                    .setContentText("ContentText")
-                    .setSmallIcon(R.drawable.ic_stat_name)
-                    .setLargeIcon(
-                            Bitmap.createScaledBitmap(icon, 128, 128, false))
-                    .setContentIntent(pendingIntent)
-                    .setOngoing(true)
-//                    .addAction(android.R.drawable.ic_media_previous,
-//                            "Previous", ppreviousIntent)
-                    .addAction(android.R.drawable.ic_media_play, "Play",
-                            pplayIntent)
-                    .addAction(android.R.drawable.ic_media_next, "Stop",
-                    pnextIntent).build();
+
+//            Notification.Builder builder = new Notification.Builder(getApplicationContext());
+//            builder.setContentTitle(getString(R.string.app_name));
+//            builder.setContentText("connecting..");
+//            builder.setSmallIcon(R.drawable.ic_post_icon);
+//            builder.setWhen(System.currentTimeMillis());
+//            builder.setContentIntent(pendingIntent);
+//
+            notification = BuildForegroundNotification(getString(R.string.app_name),"Connecting");
+
+
+//            notification = new Notification.Builder(getApplicationContext())
+//                    .setContentTitle(getString(R.string.app_name))
+//                    .setContentText("connecting..")
+//                    .setSmallIcon(R.drawable.ic_post_icon)
+//                    .setWhen(System.currentTimeMillis())
+//                    .setContentIntent(pendingIntent)
+//                    .build();
+
+          //  notification = new NotificationCompat.Builder(this).setContentTitle("sdsd");
+
+
+//            notification = new NotificationCompat.Builder(this)
+//                    .setContentTitle("Post Notifier")
+//                    .setContentText("running..")
+//                    .setSmallIcon(R.drawable.ic_post_icon)
+//                    .setLargeIcon(
+//                            Bitmap.createScaledBitmap(icon, 128, 128, false))
+//                    .setContentIntent(pendingIntent)
+//                    .setOngoing(true)
+//                    .addAction(android.R.drawable.btn_dropdown, "Stop",
+//                            pstopIntent).build();
+
+
+
+          //  Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
+            TaskStackBuilder stackBuilder = TaskStackBuilder.create(getApplicationContext());
+            stackBuilder.addParentStack(MainActivity.class);
 
 
             startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE,
                     notification);
-        }
 
-        else if (intent.getAction().equals(Constants.ACTION.PREV_ACTION)) {
-            Log.i(LOG_TAG, "Clicked Previous");
-        } else if (intent.getAction().equals(Constants.ACTION.PLAY_ACTION)) {
-            Log.i(LOG_TAG, "Clicked Play");
-        } else if (intent.getAction().equals(Constants.ACTION.NEXT_ACTION)) {
-            Log.i(LOG_TAG, "Clicked Next");
-        } else if (intent.getAction().equals(
+            if(IsConnected())
+                Update_Foreground_Notification_Text("Connected");
+        }
+         else if (intent.getAction().equals(
                 Constants.ACTION.STOPFOREGROUND_ACTION)) {
             Log.i(LOG_TAG, "Received Stop Foreground Intent");
             stopForeground(true);
@@ -295,9 +287,9 @@ public class MQTT extends Service implements MqttCallback {
 
     @Override
     public void connectionLost(Throwable cause) {
-        //  Toast.makeText(getApplicationContext(), "Connection Lost", Toast.LENGTH_LONG);
-        NotifyBroadcast("system","connectionLost");
-
+       // Toast.makeText(getApplicationContext(), "Connection Lost", Toast.LENGTH_LONG);
+        NotifyBroadcast("system","PostNotifier -connectionLost");
+        Update_Foreground_Notification_Text("Disconnected!");
         // Try to reconnect in a loop when the connection was lost, until service stopped or connected successfully
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -306,9 +298,12 @@ public class MQTT extends Service implements MqttCallback {
                 {
                     NotifyBroadcast("system","Trying to reconnect..");
                     Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
-                    try { Thread.sleep(2000);}
+                    try { Thread.sleep(10000);}
                     catch (Exception ex) {}
                 }
+
+                NotifyBroadcast("system","Connected successfully");
+                Update_Foreground_Notification_Text("Connected");
                 Subscribe(mqtt_in_topic);
             }
         });
@@ -365,59 +360,78 @@ public class MQTT extends Service implements MqttCallback {
 
 
 
-    private void StartForegroung_test(){
-
-            //Log.w(getClass().getName(), "Got to play()!");
 
 
-            Notification note=new Notification(R.drawable.ic_stat_name,
-                    "MQTT listener running..",
-                    System.currentTimeMillis());
+    private void NotifyOnNewMessage(String message){
 
-//
-            Intent i=new Intent(this, MainActivity.class);
-
-            i.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP);
-
-            PendingIntent pi=PendingIntent.getActivity(this, 0,
-                    i, 0);
-
-//            note.setLatestEventInfo(this, "Fake Player",
-//                    "Now Playing: \"Ummmm, Nothing\"",
-//                    pi);
-            note.flags|=Notification.FLAG_NO_CLEAR;
-
-            startForeground(1337, note);
-    }
-
-
-    private void NotifyOnNewMessage(){
-
-        Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-        // Vibrate for 500 milliseconds
-        v.vibrate(200);
+      //  Vibrate(1000);
+        Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext());
-        mBuilder.setSmallIcon(R.drawable.ic_stat_name);
+        mBuilder.setSmallIcon(R.drawable.ic_post1);
+        Bitmap icon = BitmapFactory.decodeResource(getResources(),R.drawable.ic_post1);
+        mBuilder.setLargeIcon(Bitmap.createScaledBitmap(icon, 128, 128, false));
         mBuilder.setContentTitle("תיבת דואר");
-        mBuilder.setContentText("דואר חדש הגיע");
+        mBuilder.setContentText(message);
         mBuilder.setNumber(++numMessages);
+        mBuilder.setSound(alarmSound);
+        long[] pattern = {500,1000,500,1000,500}; // todo : learn how it's work
+        mBuilder.setVibrate(pattern);
+        mBuilder.setLights(Color.GREEN, 300, 300);
         Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(getApplicationContext());
         stackBuilder.addParentStack(MainActivity.class);
 
-// Adds the Intent that starts the Activity to the top of the stack
+        // Adds the Intent that starts the Activity to the top of the stack
         stackBuilder.addNextIntent(resultIntent);
         PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0,PendingIntent.FLAG_UPDATE_CURRENT);
         mBuilder.setContentIntent(resultPendingIntent);
 
         NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
-// notificationID allows you to update the notification later on.
+        // notificationID allows you to update the notification later on.
         mNotificationManager.notify(numMessages, mBuilder.build()); // todo : choose notification number in a smart way
 
 
     }
+
+    private void Vibrate(int timeMs){
+        Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
+        // Vibrate for 500 milliseconds
+        v.vibrate(timeMs);
+    }
+
+
+    private Notification BuildForegroundNotification(String title,String text)
+    {
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+        // todo : add large icon
+        Bitmap icon = BitmapFactory.decodeResource(getResources(),
+                R.drawable.ic_post_icon);
+
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
+                notificationIntent, 0);
+        Notification.Builder builder = new Notification.Builder(getApplicationContext());
+        builder.setContentTitle(title);
+        builder.setContentText(text);
+        builder.setSmallIcon(R.drawable.ic_post_icon);
+        builder.setWhen(System.currentTimeMillis());
+        builder.setContentIntent(pendingIntent);
+
+        return builder.build();
+    }
+
+    private void Update_Foreground_Notification_Text(String text){
+
+        Notification note = BuildForegroundNotification(getString(R.string.app_name),text);
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.notify(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE,note);
+    }
+
 
 }
