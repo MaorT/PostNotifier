@@ -21,11 +21,8 @@ public class MainActivity extends AppCompatActivity {
 
     Button btnStartService,btnStopService;
 
-    // todo: do i need it  (and the intent filter) ?
-    public static final String mBroadcastStringAction = "com.maorservice.string";
-    public static final String mBroadcastIntegerAction = "com.maorservice.integer";
-    public static final String mBroadcastArrayListAction = "com.maorservice.arraylist";
-    private IntentFilter mIntentFilter;
+
+
     private Intent serviceIntent;
 
     private boolean serviceOnFlag = false;
@@ -41,20 +38,20 @@ public class MainActivity extends AppCompatActivity {
         btnStartService = (Button)findViewById(R.id.btnStartService);
         btnStopService = (Button)findViewById(R.id.btnStopService);
         btnStopService.setEnabled(false);
-
-        mIntentFilter = new IntentFilter();
-        mIntentFilter.addAction(mBroadcastStringAction);
-        mIntentFilter.addAction(mBroadcastStringAction);
-        mIntentFilter.addAction(mBroadcastIntegerAction);
-        mIntentFilter.addAction(mBroadcastArrayListAction);
-
         serviceIntent = new Intent(MainActivity.this, MQTT.class);
 
 
+        if(MQTT.GetStatus() == true){
+                btnStartService.setEnabled(false);
+                btnStopService.setEnabled(true);
+        }
+        else
+        {
+            btnStartService.setEnabled(true);
+            btnStopService.setEnabled(false);
+        }
+
       //  startService(serviceIntent);
-
-
-
 
         // Set buttons events :
         btnStartService.setOnClickListener(new View.OnClickListener() {
@@ -64,8 +61,8 @@ public class MainActivity extends AppCompatActivity {
 //                registerReceiver(mReceiver, mIntentFilter);
 //                startService(serviceIntent);
 //                serviceOnFlag = true;
-//                btnStartService.setEnabled(false);
-//                btnStopService.setEnabled(true);
+                btnStartService.setEnabled(false);
+                btnStopService.setEnabled(true);
 
               //  registerReceiver(mReceiver, mIntentFilter);
                 serviceIntent.setAction(Constants.ACTION.STARTFOREGROUND_ACTION);
@@ -79,8 +76,8 @@ public class MainActivity extends AppCompatActivity {
 //                unregisterReceiver(mReceiver);
 //                stopService(serviceIntent);
 //                serviceOnFlag = false;
-//                btnStartService.setEnabled(true);
-//                btnStopService.setEnabled(false);
+                btnStartService.setEnabled(true);
+                btnStopService.setEnabled(false);
 
                 serviceIntent.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
                 startService(serviceIntent);
@@ -113,90 +110,19 @@ public class MainActivity extends AppCompatActivity {
 //        stopService(stopIntent);
     }
 
-    @Override
-    public void onBackPressed() {
-
-        Log.d("mqttService","MainActivity onBackPressed ");
-        if(serviceOnFlag){
-            Toast.makeText(getApplicationContext(), "The service is still running - going background", Toast.LENGTH_LONG).show();
-            moveTaskToBack(true);
-        }
-        else
-        {
-            Toast.makeText(getApplicationContext(), "The service is stopped - exiting the app", Toast.LENGTH_LONG).show();
-            moveTaskToBack(false);
-        }
-    }
-
-
-
-
-//    private  BroadcastReceiver mReceiver_Old = new BroadcastReceiver() {
-//        @Override
-//        public void onReceive(Context context, Intent intent) {
-//            if (intent.getAction().equals(mBroadcastStringAction)) {
-////                mTextView.setText(mTextView.getText()
-////                        + intent.getStringExtra("Data") + "\n\n");
+//    @Override
+//    public void onBackPressed() {
 //
-//                String topic = intent.getStringExtra("Topic");
-//                String data = intent.getStringExtra("Data");
-//
-//                //Toast.makeText(context, "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_LONG).show();
-//
-//                // When receiving a system notifications and not a regular data
-////                if(topic.equals("system")){
-////                    Vibrate(500);
-////                    Toast.makeText(context, data, Toast.LENGTH_LONG).show();
-////                    return;
-////                }
-//
-//                Toast.makeText(getApplicationContext(), "MQTT Received: "+ intent.getStringExtra("Data"), Toast.LENGTH_SHORT).show();
-//                NotifyOnNewMessage();
-//            }
+//        Log.d("mqttService","MainActivity onBackPressed ");
+//        if(serviceOnFlag){
+//            Toast.makeText(getApplicationContext(), "The service is still running - going background", Toast.LENGTH_LONG).show();
+//            moveTaskToBack(true);
 //        }
-//    };
-
-
-
-
-    public static Context GetContext(){
-        return GetContext();
-    }
-
-
-    private void Vibrate(int timeMs)
-    {
-        Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-        // Vibrate for 500 milliseconds
-        v.vibrate(timeMs);
-    }
-
-//    private void NotifyOnNewMessage(){
-//
-//        Vibrator v = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
-//        // Vibrate for 500 milliseconds
-//        v.vibrate(200);
-//
-//        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext());
-//        mBuilder.setSmallIcon(R.drawable.ic_stat_name);
-//        mBuilder.setContentTitle("תיבת דואר");
-//        mBuilder.setContentText("דואר חדש הגיע");
-//        mBuilder.setNumber(++numMessages);
-//        Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
-//        TaskStackBuilder stackBuilder = TaskStackBuilder.create(getApplicationContext());
-//        stackBuilder.addParentStack(MainActivity.class);
-//
-//// Adds the Intent that starts the Activity to the top of the stack
-//        stackBuilder.addNextIntent(resultIntent);
-//        PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0,PendingIntent.FLAG_UPDATE_CURRENT);
-//        mBuilder.setContentIntent(resultPendingIntent);
-//
-//        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-//
-//// notificationID allows you to update the notification later on.
-//        mNotificationManager.notify(1, mBuilder.build()); // todo : choose notification number in a smart way
-//
+//        else
+//        {
+//            Toast.makeText(getApplicationContext(), "The service is stopped - exiting the app", Toast.LENGTH_LONG).show();
+//            moveTaskToBack(false);
+//        }
 //    }
-
 
 }

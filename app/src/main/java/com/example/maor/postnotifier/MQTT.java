@@ -39,19 +39,24 @@ public class MQTT extends Service implements MqttCallback {
     String ClientId = System.getProperty("user.name") + "." + System.currentTimeMillis(); // Generate a unique user id
 
     private static final String LOG_TAG = "ForegroundService";
-    private boolean serviceOnFlag = false;
+    private static boolean serviceOnFlag = false;
 
     Notification notification = null;
 
     private int numMessages = 0;
+
+
     private IntentFilter mIntentFilter;
+    public static final String mBroadcastStringAction = "com.maorservice.string";
+    public static final String mBroadcastIntegerAction = "com.maorservice.integer";
+    public static final String mBroadcastArrayListAction = "com.maorservice.arraylist";
 
 
 
     private  BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(MainActivity.mBroadcastStringAction)) {
+            if (intent.getAction().equals(mBroadcastStringAction)) {
 //                mTextView.setText(mTextView.getText()
 //                        + intent.getStringExtra("Data") + "\n\n");
 
@@ -92,10 +97,10 @@ public class MQTT extends Service implements MqttCallback {
         Log.d("mqttService", "mqtt onCreate");
         Toast.makeText(getApplicationContext(), "PostNotifier Service has been started", Toast.LENGTH_LONG).show();
         mIntentFilter = new IntentFilter();
-        mIntentFilter.addAction(MainActivity.mBroadcastStringAction);
-        mIntentFilter.addAction(MainActivity.mBroadcastStringAction);
-        mIntentFilter.addAction(MainActivity.mBroadcastIntegerAction);
-        mIntentFilter.addAction(MainActivity.mBroadcastArrayListAction);
+        mIntentFilter.addAction(mBroadcastStringAction);
+        mIntentFilter.addAction(mBroadcastStringAction);
+        mIntentFilter.addAction(mBroadcastIntegerAction);
+        mIntentFilter.addAction(mBroadcastArrayListAction);
         registerReceiver(mReceiver, mIntentFilter);
 
     }
@@ -113,12 +118,14 @@ public class MQTT extends Service implements MqttCallback {
 
             // todo : does it needed ?
             Intent notificationIntent = new Intent(this, MainActivity.class);
+
             notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
             notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                     | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 
             PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
                     notificationIntent, 0);
+
 
             Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
             Subscribe(mqtt_in_topic);
@@ -158,9 +165,13 @@ public class MQTT extends Service implements MqttCallback {
                             pplayIntent)
                     .addAction(android.R.drawable.ic_media_next, "Stop",
                     pnextIntent).build();
+
+
             startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE,
                     notification);
-        } else if (intent.getAction().equals(Constants.ACTION.PREV_ACTION)) {
+        }
+
+        else if (intent.getAction().equals(Constants.ACTION.PREV_ACTION)) {
             Log.i(LOG_TAG, "Clicked Previous");
         } else if (intent.getAction().equals(Constants.ACTION.PLAY_ACTION)) {
             Log.i(LOG_TAG, "Clicked Play");
@@ -206,6 +217,10 @@ public class MQTT extends Service implements MqttCallback {
         // TODO Auto-generated method stub
         Log.d("mqttService", "mqtt deliveryComplete");
 
+    }
+
+    public static boolean GetStatus(){
+        return serviceOnFlag;
     }
 
     //endregion
@@ -340,7 +355,7 @@ public class MQTT extends Service implements MqttCallback {
     private void NotifyBroadcast(String topic,String message){
 
         Intent broadcastIntent = new Intent();
-        broadcastIntent.setAction(MainActivity.mBroadcastStringAction);
+        broadcastIntent.setAction(mBroadcastStringAction);
         broadcastIntent.putExtra("Data",message); // Add data that is sent to service
         broadcastIntent.putExtra("Topic",topic); // Add data that is sent to service
         sendBroadcast(broadcastIntent);
