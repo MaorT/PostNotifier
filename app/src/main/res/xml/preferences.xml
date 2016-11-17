@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        android:title="Category1"
+        android:key="pref_key_storage_settings">
+    <CheckBoxPreference
+        android:key="checkBox"
+        android:title="Alert"
+        android:summary="Alert when getting new post"
+        android:defaultValue="true" />
+
+        <EditTextPreference android:title="MQTT User Name"
+            android:key="mqttUserName"
+            android:summary="Please your MQTT username"
+            android:hint="Enter your MQTT user name"></EditTextPreference>
+
+        <EditTextPreference android:title="MQTT User password"
+            android:key="mqttUserPassword"
+            android:summary="Please your MQTT password"
+            android:hint="Enter your MQTT password"
+            android:password="true">
+        </EditTextPreference>
+
+        <EditTextPreference android:title="MQTT server URL"
+            android:key="mqttServerUrl"
+            android:summary="Please your MQTT server url"
+            android:hint="Example: m14.cloudmqtt.com"></EditTextPreference>
+
+        <EditTextPreference
+            android:key="mqttServerPort"
+            android:title="MQTT server port"
+            android:defaultValue="1883"
+            android:hint="Please enter port, Example: 1883"
+            android:inputType="number"
+            ></EditTextPreference>
+
+
+</PreferenceCategory>
+</PreferenceScreen>

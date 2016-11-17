@@ -1,6 +1,5 @@
 package com.example.maor.postnotifier;
 
-
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -9,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -16,6 +16,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.IBinder;
 import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.NotificationCompat;
 import android.util.Log;
@@ -32,10 +33,10 @@ public class MQTT extends Service implements MqttCallback {
     private MqttClient client = null;
     public static String mqtt_in_topic = "postal";
     public static String mqtt_out_topic = "postal";
-    public static String mqtt_server_address = "m12.cloudmqtt.com";
-    public static String mqtt_userName = "androidPostal";
-    public static String mqtt_password = "123456";
-    public static int mqtt_port = 16666;
+    public static String mqtt_server_address = "demo.mqtt.com";
+    public static String mqtt_userName = "demo username";
+    public static String mqtt_password = "demo password";
+    public static int mqtt_port = 8888;
     String ClientId = System.getProperty("user.name") + "." + System.currentTimeMillis(); // Generate a unique user id
 
     private static final String LOG_TAG = "PostNotifier";
@@ -66,7 +67,7 @@ public class MQTT extends Service implements MqttCallback {
                     Toast.makeText(context, data, Toast.LENGTH_LONG).show();
                     return;
                 }
-                NotifyOnNewMessage(data); //todo:return\implement this action
+                NotifyOnNewMessage(data);
             }
         }
     };
@@ -90,88 +91,23 @@ public class MQTT extends Service implements MqttCallback {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d("mqttService", "mqtt onStartCommand");
+
         if (intent.getAction().equals(Constants.ACTION.STARTFOREGROUND_ACTION)) {
-            Log.i(LOG_TAG, "Received Start Foreground Intent ");
 
-//            // todo : does it needed ?
-//            Intent notificationIntent = new Intent(this, MainActivity.class);
-//
-//            notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
-//            notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-//                    | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-
-//            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
-//                    notificationIntent, 0);
-
-
+            LoadPreferences();
             Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
             Subscribe(mqtt_in_topic);
-
             serviceOnFlag = true;
-
-//            Intent previousIntent = new Intent(this, MQTT.class);
-//            previousIntent.setAction(Constants.ACTION.PREV_ACTION);
-//            PendingIntent ppreviousIntent = PendingIntent.getService(this, 0,
-//                    previousIntent, 0);
-
-//            // Set 'Stop' button intent
-//            Intent stopIntent = new Intent(this, MQTT.class);
-//            stopIntent.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
-//            PendingIntent pstopIntent = PendingIntent.getService(this, 0,
-//                    stopIntent, 0);
-
-
-
-
-//            Notification.Builder builder = new Notification.Builder(getApplicationContext());
-//            builder.setContentTitle(getString(R.string.app_name));
-//            builder.setContentText("connecting..");
-//            builder.setSmallIcon(R.drawable.ic_post_icon);
-//            builder.setWhen(System.currentTimeMillis());
-//            builder.setContentIntent(pendingIntent);
-//
             notification = BuildForegroundNotification(getString(R.string.app_name),"Connecting");
-
-
-//            notification = new Notification.Builder(getApplicationContext())
-//                    .setContentTitle(getString(R.string.app_name))
-//                    .setContentText("connecting..")
-//                    .setSmallIcon(R.drawable.ic_post_icon)
-//                    .setWhen(System.currentTimeMillis())
-//                    .setContentIntent(pendingIntent)
-//                    .build();
-
-          //  notification = new NotificationCompat.Builder(this).setContentTitle("sdsd");
-
-
-//            notification = new NotificationCompat.Builder(this)
-//                    .setContentTitle("Post Notifier")
-//                    .setContentText("running..")
-//                    .setSmallIcon(R.drawable.ic_post_icon)
-//                    .setLargeIcon(
-//                            Bitmap.createScaledBitmap(icon, 128, 128, false))
-//                    .setContentIntent(pendingIntent)
-//                    .setOngoing(true)
-//                    .addAction(android.R.drawable.btn_dropdown, "Stop",
-//                            pstopIntent).build();
-
-
-
-          //  Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
             TaskStackBuilder stackBuilder = TaskStackBuilder.create(getApplicationContext());
             stackBuilder.addParentStack(MainActivity.class);
-
-
-            startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE,
-                    notification);
+            startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE,notification);
 
             if(IsConnected())
-                Update_Foreground_Notification_Text("Connected");
+                Update_Foreground_Notification_Text("Connected"); // todo : Do something when unsuccessful connection
         }
          else if (intent.getAction().equals(
                 Constants.ACTION.STOPFOREGROUND_ACTION)) {
-            Log.i(LOG_TAG, "Received Stop Foreground Intent");
             stopForeground(true);
             stopSelf();
         }
@@ -181,7 +117,7 @@ public class MQTT extends Service implements MqttCallback {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.d("mqttService", "mqtt onDestroy");
+        Log.d(LOG_TAG, "PostNotifier Service has been stopped");
         serviceOnFlag = false;
         if(client != null && IsConnected()){
             UnSubscribe(mqtt_in_topic);
@@ -193,8 +129,6 @@ public class MQTT extends Service implements MqttCallback {
     @Override
     public IBinder onBind(Intent intent) {
         // Wont be called as service is not bound
-        Log.d("mqttService", "mqtt onBind");
-        Toast.makeText(getApplicationContext(), "In onBind", Toast.LENGTH_SHORT);
         return null;
     }
 
@@ -431,6 +365,15 @@ public class MQTT extends Service implements MqttCallback {
         Notification note = BuildForegroundNotification(getString(R.string.app_name),text);
         NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         mNotificationManager.notify(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE,note);
+    }
+
+    private void LoadPreferences(){
+
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        mqtt_userName = SP.getString("mqttUserName", "NA");
+        mqtt_password = SP.getString("mqttUserPassword", "xx");
+        mqtt_server_address = SP.getString("mqttServerUrl", "undefined.mqtt.com");
+        mqtt_port = Integer.parseInt(SP.getString("mqttServerPort", "1883"));
     }
 
 

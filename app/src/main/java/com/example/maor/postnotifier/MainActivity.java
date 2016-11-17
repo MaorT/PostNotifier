@@ -10,7 +10,7 @@ import android.widget.Button;
 public class MainActivity extends AppCompatActivity {
 
 
-    Button btnStartService,btnStopService;
+    Button btnStartService,btnStopService,btnSettings;
 
 
 
@@ -28,6 +28,9 @@ public class MainActivity extends AppCompatActivity {
 
         btnStartService = (Button)findViewById(R.id.btnStartService);
         btnStopService = (Button)findViewById(R.id.btnStopService);
+        btnSettings = (Button)findViewById(R.id.btnSettings);
+
+
         btnStopService.setEnabled(false);
         serviceIntent = new Intent(MainActivity.this, MQTT.class);
 
@@ -74,6 +77,16 @@ public class MainActivity extends AppCompatActivity {
                 startService(serviceIntent);
             }
         });
+
+        btnSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(MainActivity.this, Preferences.class);
+                startActivity(i);
+            }
+        });
+
+
 
 
     }
