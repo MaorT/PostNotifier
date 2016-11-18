@@ -8,6 +8,7 @@ import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
+import android.preference.RingtonePreference;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -79,16 +80,16 @@ public class Preferences extends PreferenceActivity {
             addPreferencesFromResource(R.xml.preferences);
 
             /** Get each preference and set it's PreferenceChangeListener **/
-            SetTextPreferenceListenerByKey("mqttUserName");
-            SetTextPreferenceListenerByKey("mqttUserPassword");
-            SetTextPreferenceListenerByKey("mqttServerUrl");
-            SetTextPreferenceListenerByKey("mqttServerPort");
-            SetTextPreferenceListenerByKey("notification_sound");
-            SetTextPreferenceListenerByKey("notification_vibration");
-
+            SetPreferenceListenerByKey("mqttUserName");
+            SetPreferenceListenerByKey("mqttUserPassword");
+            SetPreferenceListenerByKey("mqttServerUrl");
+            SetPreferenceListenerByKey("mqttServerPort");
+            SetPreferenceListenerByKey("notification_sound");
+            SetPreferenceListenerByKey("notification_vibration");
+            SetPreferenceListenerByKey("notification_ringtone");
         }
 
-        private void SetTextPreferenceListenerByKey(String keyName){
+        private void SetPreferenceListenerByKey(String keyName){
 
             final Preference pref = getPreferenceScreen().findPreference(keyName);
             pref.setOnPreferenceChangeListener(this);
@@ -119,12 +120,15 @@ public class Preferences extends PreferenceActivity {
         @Override
         public void onPause() {
             super.onPause();
+        }
+
+        @Override
+        public void onDestroy() {
+            super.onDestroy();
             getPreferenceScreen()
                     .getSharedPreferences()
                     .unregisterOnSharedPreferenceChangeListener(this);
         }
-
-
     }/// End of the internal class
 
 

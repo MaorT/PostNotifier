@@ -48,7 +48,6 @@ public class MainActivity extends AppCompatActivity {
 
         CheckAutoStart();
 
-      //  startService(serviceIntent);
 
         // Set buttons events :
         btnStartService.setOnClickListener(new View.OnClickListener() {
@@ -74,9 +73,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
-
-
     }
 
     @Override
@@ -97,9 +93,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         Log.d("mqttService","MainActivity onDestroy ");
         super.onDestroy();
-//        Intent stopIntent = new Intent(MainActivity.this,
-//                BroadcastService.class);
-//        stopService(stopIntent);
     }
 
 
@@ -128,6 +121,5 @@ public class MainActivity extends AppCompatActivity {
             StartService();
 
     }
-
 
 }

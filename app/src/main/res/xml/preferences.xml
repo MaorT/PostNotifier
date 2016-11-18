@@ -21,6 +21,12 @@
             android:title="Notification vibration"
             android:defaultValue="false" />
 
+        <RingtonePreference
+            android:key="notification_ringtone"
+            android:title="Select notification sound"/>
+
+
+
     </PreferenceCategory>
 
     <PreferenceCategory

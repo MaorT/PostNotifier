@@ -17,6 +17,7 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
+import android.preference.RingtonePreference;
 import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.NotificationCompat;
 import android.util.Log;
@@ -25,6 +26,8 @@ import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+
+import java.net.URI;
 
 
 public class MQTT extends Service implements MqttCallback {
@@ -42,6 +45,7 @@ public class MQTT extends Service implements MqttCallback {
     // Other settigns flags
     private static boolean notification_vibration = true;
     private static boolean notification_sound = true;
+    private static String notification_ringtone  = null;
 
     String ClientId = System.getProperty("user.name") + "." + System.currentTimeMillis(); // Generate a unique user id
 
@@ -337,7 +341,7 @@ public class MQTT extends Service implements MqttCallback {
 
 
       //  Vibrate(1000);
-        Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+
 
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext());
         mBuilder.setSmallIcon(R.drawable.ic_post1);
@@ -347,7 +351,11 @@ public class MQTT extends Service implements MqttCallback {
         mBuilder.setContentText(message);
         mBuilder.setNumber(++numMessages);
         if(notification_sound)
+        {
+            Uri alarmSound = Uri.parse(notification_ringtone);
             mBuilder.setSound(alarmSound);
+        }
+
 
         if(notification_vibration){
             long[] pattern = {500,1000,500,1000,500}; // todo : learn how it's work
@@ -425,6 +433,7 @@ public class MQTT extends Service implements MqttCallback {
         mqtt_port = Integer.parseInt(SP.getString("mqttServerPort", "1883"));
         notification_vibration = SP.getBoolean("notification_vibration", false);
         notification_sound = SP.getBoolean("notification_sound", false);
+        notification_ringtone = SP.getString("notification_ringtone", "DEFAULT_RINGTONE_URI");
 
         Log.d(LOG_TAG,"The new setting was loaded");
     }
