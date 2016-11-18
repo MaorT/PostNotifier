@@ -1,14 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+
+
+
+    <PreferenceCategory android:title="Global Settings:">
+        <CheckBoxPreference
+            android:key="autoStartService"
+            android:title="Auto start service"
+            android:summary="Start the service with application load"
+            android:defaultValue="false" />
+
+        <CheckBoxPreference
+            android:key="notification_sound"
+            android:title="Notification sound"
+            android:defaultValue="false" />
+
+        <CheckBoxPreference
+            android:key="notification_vibration"
+            android:title="Notification vibration"
+            android:defaultValue="false" />
+
+    </PreferenceCategory>
+
     <PreferenceCategory
-        android:title="Category1"
+        android:title=" MQTT Settings:"
         android:key="pref_key_storage_settings">
-    <CheckBoxPreference
-        android:key="checkBox"
-        android:title="Alert"
-        android:summary="Alert when getting new post"
-        android:defaultValue="true" />
+
 
         <EditTextPreference android:title="MQTT User Name"
             android:key="mqttUserName"
@@ -22,6 +40,18 @@
             android:password="true">
         </EditTextPreference>
 
+
+        <EditTextPreference android:title="MQTT IN topic"
+            android:key="mqttInTopic"
+            android:hint="Enter your MQTT topic for incoming messages">
+        </EditTextPreference>
+
+        <EditTextPreference android:title="MQTT OUT topic"
+            android:key="mqttOutTopic"
+            android:hint="Enter your MQTT topic for incoming messages">
+        </EditTextPreference>
+
+
         <EditTextPreference android:title="MQTT server URL"
             android:key="mqttServerUrl"
             android:summary="Please your MQTT server url"
@@ -34,6 +64,7 @@
             android:hint="Please enter port, Example: 1883"
             android:inputType="number"
             ></EditTextPreference>
+
 
 
 </PreferenceCategory>

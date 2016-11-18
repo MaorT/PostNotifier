@@ -29,14 +29,20 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 public class MQTT extends Service implements MqttCallback {
 
+    private static Context context = null;
+
     // MQTT Variable todo : move some of them to the save preference
-    private MqttClient client = null;
-    public static String mqtt_in_topic = "postal";
-    public static String mqtt_out_topic = "postal";
+    private  MqttClient client = null;
+    public static String mqtt_in_topic = "demoTopic";
+    public static String mqtt_out_topic = "demoTopic";
     public static String mqtt_server_address = "demo.mqtt.com";
     public static String mqtt_userName = "demo username";
     public static String mqtt_password = "demo password";
-    public static int mqtt_port = 8888;
+    public static int mqtt_port = 1883; // for demo, now using 16666
+    // Other settigns flags
+    private static boolean notification_vibration = true;
+    private static boolean notification_sound = true;
+
     String ClientId = System.getProperty("user.name") + "." + System.currentTimeMillis(); // Generate a unique user id
 
     private static final String LOG_TAG = "PostNotifier";
@@ -46,6 +52,7 @@ public class MQTT extends Service implements MqttCallback {
     Notification notification = null;
 
     private int numMessages = 0; // count the notification number
+
 
 
     private IntentFilter mIntentFilter;
@@ -61,13 +68,30 @@ public class MQTT extends Service implements MqttCallback {
             if (intent.getAction().equals(mBroadcastStringAction)) {
                 String topic = intent.getStringExtra("Topic");
                 String data = intent.getStringExtra("Data");
+                boolean retained = intent.getExtras().getBoolean("Retained");
+
+                if(data.length() == 0) // Ignore empty messages
+                    return;
 
                 // When receiving a system notifications and not a regular data
                 if(topic.equals("system")){
+                    if(data.equals("newSettings")){
+                        LoadPreferences(); // refresh new settings
+//                        if(!IsConnected())
+//                            Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
+//                        if(IsConnected())
+//                            Subscribe(mqtt_in_topic);
+
+                    }
                     Toast.makeText(context, data, Toast.LENGTH_LONG).show();
                     return;
                 }
+
                 NotifyOnNewMessage(data);
+                // Clear retained message - prevent from getting notification on every re-connection
+                // It's a king of a 'ACK' to tell the server that the massage was arrived successfully
+                ClearReatinedMessage();
+
             }
         }
     };
@@ -93,7 +117,7 @@ public class MQTT extends Service implements MqttCallback {
     public int onStartCommand(Intent intent, int flags, int startId) {
 
         if (intent.getAction().equals(Constants.ACTION.STARTFOREGROUND_ACTION)) {
-
+            context = this.getBaseContext();
             LoadPreferences();
             Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
             Subscribe(mqtt_in_topic);
@@ -135,7 +159,7 @@ public class MQTT extends Service implements MqttCallback {
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
         //Log.d("mqttService","new message:"+ message.toString());
-        NotifyBroadcast(topic,message.toString());
+        NotifyBroadcast(topic,message.toString(),message.isRetained());
     }
 
     @Override
@@ -222,7 +246,7 @@ public class MQTT extends Service implements MqttCallback {
     @Override
     public void connectionLost(Throwable cause) {
        // Toast.makeText(getApplicationContext(), "Connection Lost", Toast.LENGTH_LONG);
-        NotifyBroadcast("system","PostNotifier -connectionLost");
+        NotifyBroadcast("system","PostNotifier -connectionLost",false);
         Update_Foreground_Notification_Text("Disconnected!");
         // Try to reconnect in a loop when the connection was lost, until service stopped or connected successfully
         Thread thread = new Thread(new Runnable() {
@@ -230,13 +254,13 @@ public class MQTT extends Service implements MqttCallback {
             public void run() {
                 while(!IsConnected() && serviceOnFlag)
                 {
-                    NotifyBroadcast("system","Trying to reconnect..");
+                    NotifyBroadcast("system","Trying to reconnect..",false);
                     Connect(mqtt_server_address,mqtt_port,ClientId,mqtt_userName,mqtt_password);
                     try { Thread.sleep(10000);}
                     catch (Exception ex) {}
                 }
 
-                NotifyBroadcast("system","Connected successfully");
+                NotifyBroadcast("system","Connected successfully",false);
                 Update_Foreground_Notification_Text("Connected");
                 Subscribe(mqtt_in_topic);
             }
@@ -281,22 +305,36 @@ public class MQTT extends Service implements MqttCallback {
     }
 
 
-    private void NotifyBroadcast(String topic,String message){
+    public boolean Publish(String topic, String payload,int qos,boolean retained) {
+        try {
+            client.publish(topic, payload.getBytes(),qos,retained);
+            return true;
+        } catch (MqttPersistenceException e) {
+            e.printStackTrace();
+        } catch (MqttException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+
+    public void NotifyBroadcast(String topic,String message,boolean retained){
 
         Intent broadcastIntent = new Intent();
         broadcastIntent.setAction(mBroadcastStringAction);
         broadcastIntent.putExtra("Data",message); // Add data that is sent to service
         broadcastIntent.putExtra("Topic",topic); // Add data that is sent to service
+        broadcastIntent.putExtra("Retained",retained); // Add data that is sent to service
+
         sendBroadcast(broadcastIntent);
 
         Log.d("mqttService","Notifying broadcast receiver..");
     }
 
 
-
-
-
     private void NotifyOnNewMessage(String message){
+
+
 
       //  Vibrate(1000);
         Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
@@ -308,9 +346,14 @@ public class MQTT extends Service implements MqttCallback {
         mBuilder.setContentTitle("תיבת דואר");
         mBuilder.setContentText(message);
         mBuilder.setNumber(++numMessages);
-        mBuilder.setSound(alarmSound);
-        long[] pattern = {500,1000,500,1000,500}; // todo : learn how it's work
-        mBuilder.setVibrate(pattern);
+        if(notification_sound)
+            mBuilder.setSound(alarmSound);
+
+        if(notification_vibration){
+            long[] pattern = {500,1000,500,1000,500}; // todo : learn how it's work
+            mBuilder.setVibrate(pattern);
+        }
+
         mBuilder.setLights(Color.GREEN, 300, 300);
         Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(getApplicationContext());
@@ -367,14 +410,30 @@ public class MQTT extends Service implements MqttCallback {
         mNotificationManager.notify(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE,note);
     }
 
-    private void LoadPreferences(){
+    public static void LoadPreferences(){
 
-        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        if(context == null)
+            return;
+
+        SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(context);
+
         mqtt_userName = SP.getString("mqttUserName", "NA");
-        mqtt_password = SP.getString("mqttUserPassword", "xx");
+        mqtt_password = SP.getString("mqttUserPassword", "undefined");
         mqtt_server_address = SP.getString("mqttServerUrl", "undefined.mqtt.com");
+        mqtt_in_topic = SP.getString("mqttInTopic", "undefined");
+        mqtt_out_topic = SP.getString("mqttOutTopic", "undefined");
         mqtt_port = Integer.parseInt(SP.getString("mqttServerPort", "1883"));
+        notification_vibration = SP.getBoolean("notification_vibration", false);
+        notification_sound = SP.getBoolean("notification_sound", false);
+
+        Log.d(LOG_TAG,"The new setting was loaded");
     }
 
+
+    public void ClearReatinedMessage(){
+        if(client == null || !client.isConnected())
+            return;
+        Publish(mqtt_in_topic,"",1,true);
+    }
 
 }

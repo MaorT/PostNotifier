@@ -1,5 +1,6 @@
 package com.example.maor.postnotifier;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.preference.EditTextPreference;
@@ -13,6 +14,8 @@ import android.util.Log;
 import android.widget.Toast;
 
 public class Preferences extends PreferenceActivity {
+
+   // private static boolean settingsChanged_flag = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,7 +32,7 @@ public class Preferences extends PreferenceActivity {
         @Override
 
         public boolean onPreferenceChange(Preference preference, Object newValue) {
-            String preferenceName = preference.getKey().toString();
+            String preferenceName = preference.getKey();
 
             /** General validators - No empty setting at all **/
             if(newValue.toString().length() == 0)
@@ -60,6 +63,10 @@ public class Preferences extends PreferenceActivity {
                     break;
             }
 
+            if(preferenceName.startsWith("mqtt")){
+                Toast.makeText(getActivity(),"New MQTT settings - please restart the service",Toast.LENGTH_LONG).show();
+                return true;
+            }
 
             Toast.makeText(getActivity(),"The new " + preferenceName+" has been saved",Toast.LENGTH_LONG).show();
             return true;
@@ -71,51 +78,29 @@ public class Preferences extends PreferenceActivity {
             super.onCreate(savedInstanceState);
             addPreferencesFromResource(R.xml.preferences);
 
-
             /** Get each preference and set it's PreferenceChangeListener **/
             SetTextPreferenceListenerByKey("mqttUserName");
             SetTextPreferenceListenerByKey("mqttUserPassword");
             SetTextPreferenceListenerByKey("mqttServerUrl");
             SetTextPreferenceListenerByKey("mqttServerPort");
-
-
-//            final EditTextPreference editPref_mqttUserName = (EditTextPreference)getPreferenceScreen().findPreference("mqttUserName");
-//            editPref_mqttUserName.setOnPreferenceChangeListener(this);
-
-//            final EditTextPreference editPref_mqttUserPassword = (EditTextPreference)getPreferenceScreen().findPreference("mqttUserPassword");
-//            editPref_mqttUserPassword.setOnPreferenceChangeListener(this);
-
-
-
-//            editPref_mqttUserName.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-//                @Override
-//                public boolean onPreferenceChange(Preference preference, Object newValue) {
-//
-//                    String preferenceName = preference.getKey().toString();
-//
-//                    Toast.makeText(getActivity(),preferenceName+" changed - yeah",Toast.LENGTH_LONG).show();
-//                    return true;
-//                }
-//            });
-
-
-
+            SetTextPreferenceListenerByKey("notification_sound");
+            SetTextPreferenceListenerByKey("notification_vibration");
 
         }
 
         private void SetTextPreferenceListenerByKey(String keyName){
 
-            final EditTextPreference pref = (EditTextPreference)getPreferenceScreen().findPreference(keyName);
+            final Preference pref = getPreferenceScreen().findPreference(keyName);
             pref.setOnPreferenceChangeListener(this);
 
         }
 
 
-        // todo : realy needed ?
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
             //if (key.equals("MQTT_ServerIP")) {
-            Preference pref = findPreference(key);
+          //  Preference pref = findPreference(key);
+            MQTT.LoadPreferences();
 //            pref.setSummary(sharedPreferences.getString(key, ""));
             // }
         }
@@ -140,15 +125,7 @@ public class Preferences extends PreferenceActivity {
         }
 
 
+    }/// End of the internal class
 
 
-    }
-
-
-
-
-
-
-
-
-}
+} /// End of the Preferences

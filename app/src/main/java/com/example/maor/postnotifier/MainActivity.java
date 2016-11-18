@@ -1,6 +1,9 @@
 package com.example.maor.postnotifier;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.preference.Preference;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -30,10 +33,8 @@ public class MainActivity extends AppCompatActivity {
         btnStopService = (Button)findViewById(R.id.btnStopService);
         btnSettings = (Button)findViewById(R.id.btnSettings);
 
-
         btnStopService.setEnabled(false);
         serviceIntent = new Intent(MainActivity.this, MQTT.class);
-
 
         if(MQTT.GetStatus() == true){
                 btnStartService.setEnabled(false);
@@ -45,36 +46,23 @@ public class MainActivity extends AppCompatActivity {
             btnStopService.setEnabled(false);
         }
 
+        CheckAutoStart();
+
       //  startService(serviceIntent);
 
         // Set buttons events :
         btnStartService.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-             //   Toast.makeText(getBaseContext(), "Service started", Toast.LENGTH_LONG).show();
-//                registerReceiver(mReceiver, mIntentFilter);
-//                startService(serviceIntent);
-//                serviceOnFlag = true;
-                btnStartService.setEnabled(false);
-                btnStopService.setEnabled(true);
+                StartService();
 
-              //  registerReceiver(mReceiver, mIntentFilter);
-                serviceIntent.setAction(Constants.ACTION.STARTFOREGROUND_ACTION);
-                startService(serviceIntent);
             }
         });
         btnStopService.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-             //   Toast.makeText(getApplicationContext(), "Service stoped", Toast.LENGTH_LONG).show();
-//                unregisterReceiver(mReceiver);
-//                stopService(serviceIntent);
-//                serviceOnFlag = false;
-                btnStartService.setEnabled(true);
-                btnStopService.setEnabled(false);
+                StopService();
 
-                serviceIntent.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
-                startService(serviceIntent);
             }
         });
 
@@ -114,19 +102,32 @@ public class MainActivity extends AppCompatActivity {
 //        stopService(stopIntent);
     }
 
-//    @Override
-//    public void onBackPressed() {
-//
-//        Log.d("mqttService","MainActivity onBackPressed ");
-//        if(serviceOnFlag){
-//            Toast.makeText(getApplicationContext(), "The service is still running - going background", Toast.LENGTH_LONG).show();
-//            moveTaskToBack(true);
-//        }
-//        else
-//        {
-//            Toast.makeText(getApplicationContext(), "The service is stopped - exiting the app", Toast.LENGTH_LONG).show();
-//            moveTaskToBack(false);
-//        }
-//    }
+
+    private void StartService(){
+        btnStartService.setEnabled(false);
+        btnStopService.setEnabled(true);
+        serviceIntent.setAction(Constants.ACTION.STARTFOREGROUND_ACTION);
+        startService(serviceIntent);
+    }
+
+    private void StopService(){
+        btnStartService.setEnabled(true);
+        btnStopService.setEnabled(false);
+        serviceIntent.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
+        startService(serviceIntent);
+    }
+
+    private boolean GetAutoStartService(){
+
+       SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
+        return sp.getBoolean("autoStartService", false);
+    }
+
+    private void CheckAutoStart(){
+        if(MQTT.GetStatus() == false && GetAutoStartService() == true )
+            StartService();
+
+    }
+
 
 }
