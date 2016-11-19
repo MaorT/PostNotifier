@@ -12,12 +12,10 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.IBinder;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
-import android.preference.RingtonePreference;
 import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.NotificationCompat;
 import android.util.Log;
@@ -26,8 +24,6 @@ import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-
-import java.net.URI;
 
 
 public class MQTT extends Service implements MqttCallback {
@@ -42,7 +38,8 @@ public class MQTT extends Service implements MqttCallback {
     public static String mqtt_userName = "demo username";
     public static String mqtt_password = "demo password";
     public static int mqtt_port = 1883; // for demo, now using 16666
-    // Other settigns flags
+
+    // Other settings flags
     private static boolean notification_vibration = true;
     private static boolean notification_sound = true;
     private static String notification_ringtone  = null;
@@ -94,6 +91,7 @@ public class MQTT extends Service implements MqttCallback {
                 NotifyOnNewMessage(data);
                 // Clear retained message - prevent from getting notification on every re-connection
                 // It's a king of a 'ACK' to tell the server that the massage was arrived successfully
+                //todo: use the retained flag - don't clear retained every time
                 ClearReatinedMessage();
 
             }
@@ -106,7 +104,6 @@ public class MQTT extends Service implements MqttCallback {
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.d("mqttService", "mqtt onCreate");
         Toast.makeText(getApplicationContext(), "PostNotifier Service has been started", Toast.LENGTH_LONG).show();
         mIntentFilter = new IntentFilter();
         mIntentFilter.addAction(mBroadcastStringAction);
@@ -145,7 +142,7 @@ public class MQTT extends Service implements MqttCallback {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.d(LOG_TAG, "PostNotifier Service has been stopped");
+       // Log.i(LOG_TAG, "PostNotifier Service has been stopped");
         serviceOnFlag = false;
         if(client != null && IsConnected()){
             UnSubscribe(mqtt_in_topic);
@@ -162,14 +159,14 @@ public class MQTT extends Service implements MqttCallback {
 
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
-        //Log.d("mqttService","new message:"+ message.toString());
+       // Log.d(LOG_TAG,"new message:"+ message.toString());
         NotifyBroadcast(topic,message.toString(),message.isRetained());
     }
 
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
         // TODO Auto-generated method stub
-        Log.d("mqttService", "mqtt deliveryComplete");
+        //Log.d(LOG_TAG, "mqtt deliveryComplete");
 
     }
 
@@ -191,8 +188,6 @@ public class MQTT extends Service implements MqttCallback {
 
         } catch (MqttException e) {
             e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
 
     }
@@ -205,8 +200,6 @@ public class MQTT extends Service implements MqttCallback {
             client.setCallback(this);
 
         } catch (MqttException e) {
-            e.printStackTrace();
-        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -225,8 +218,6 @@ public class MQTT extends Service implements MqttCallback {
             client.setCallback(this);
         } catch (MqttException e) {
             e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
 
     }
@@ -241,8 +232,6 @@ public class MQTT extends Service implements MqttCallback {
             client.disconnect();
         } catch (MqttException e) {
             e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
 
     }
@@ -252,6 +241,7 @@ public class MQTT extends Service implements MqttCallback {
        // Toast.makeText(getApplicationContext(), "Connection Lost", Toast.LENGTH_LONG);
         NotifyBroadcast("system","PostNotifier -connectionLost",false);
         Update_Foreground_Notification_Text("Disconnected!");
+        Log.i(LOG_TAG,"PostNotifier - Connection lost");
         // Try to reconnect in a loop when the connection was lost, until service stopped or connected successfully
         Thread thread = new Thread(new Runnable() {
             @Override
@@ -300,8 +290,6 @@ public class MQTT extends Service implements MqttCallback {
         try {
             client.publish(topic, message);
             return true;
-        } catch (MqttPersistenceException e) {
-            e.printStackTrace();
         } catch (MqttException e) {
             e.printStackTrace();
         }
@@ -313,8 +301,6 @@ public class MQTT extends Service implements MqttCallback {
         try {
             client.publish(topic, payload.getBytes(),qos,retained);
             return true;
-        } catch (MqttPersistenceException e) {
-            e.printStackTrace();
         } catch (MqttException e) {
             e.printStackTrace();
         }
@@ -329,10 +315,7 @@ public class MQTT extends Service implements MqttCallback {
         broadcastIntent.putExtra("Data",message); // Add data that is sent to service
         broadcastIntent.putExtra("Topic",topic); // Add data that is sent to service
         broadcastIntent.putExtra("Retained",retained); // Add data that is sent to service
-
         sendBroadcast(broadcastIntent);
-
-        Log.d("mqttService","Notifying broadcast receiver..");
     }
 
 
@@ -434,8 +417,6 @@ public class MQTT extends Service implements MqttCallback {
         notification_vibration = SP.getBoolean("notification_vibration", false);
         notification_sound = SP.getBoolean("notification_sound", false);
         notification_ringtone = SP.getString("notification_ringtone", "DEFAULT_RINGTONE_URI");
-
-        Log.d(LOG_TAG,"The new setting was loaded");
     }
 
 

@@ -1,17 +1,10 @@
 package com.example.maor.postnotifier;
 
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
-import android.preference.EditTextPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
-import android.preference.PreferenceManager;
-import android.preference.RingtonePreference;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Toast;
 
 public class Preferences extends PreferenceActivity {
@@ -97,6 +90,7 @@ public class Preferences extends PreferenceActivity {
         }
 
 
+        // When any preference change has been made, used to update the changes immediately
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
             //if (key.equals("MQTT_ServerIP")) {
